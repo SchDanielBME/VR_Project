@@ -28,9 +28,12 @@ public class Data : MonoBehaviour
     [SerializeField] private GameObject stopPanel;
     [SerializeField] private Button stopButton;
 
-    private bool stopButtonPressed = false;
+    private int currentAngleIndex = 0;
+    private int currentSceneIndex = 0;
+    private bool waitingForStartPosition = true;
+    private bool waitingForEndPosition = true;
 
-    public event EventHandler<CurrentEventArgs> OnCurentScenes;
+    public event EventHandler <CurrentEventArgs> OnCurentScenes;
     public class CurrentEventArgs : EventArgs
     {
         public int CurrentSceneNum { get; }
@@ -42,6 +45,20 @@ public class Data : MonoBehaviour
         }
     }
 
+    public event EventHandler<AngleEventArgs> OnCurentAngle;
+    public class AngleEventArgs : EventArgs
+    {
+        public int Angle { get; }
+
+
+        public AngleEventArgs(int angleIn360)
+        {
+            Angle = angleIn360;
+        }
+    }
+
+    public event EventHandler OnTaskButtonClicked;
+    public event EventHandler OnStopButtonClicked;
 
     [System.Serializable] 
     public class TableRow
@@ -49,19 +66,24 @@ public class Data : MonoBehaviour
         public int Taskorder;
         public int instruction;
         public string direction;
+        public int angle360;
+        public int startPosition;
+        public int endPosition;
         public int result;
         public int error;
         public int startTime;
         public int endTime;
         public int actualTime;
 
-        // Constructor not needed for serialization; provided for manual instantiation if necessary
-        public TableRow(int order, int instruction, string direction,
+        public TableRow(int order, int instruction, string direction, int angle360, int startPosition, int endPosition,
                         int result, int error, int startTime, int endTime, int actualTime)
         {
             this.Taskorder = order;
             this.instruction = instruction;
             this.direction = direction;
+            this.angle360 = angle360;
+            this.startPosition = startPosition;
+            this.endPosition = endPosition;
             this.result = result;
             this.error = error;
             this.startTime = startTime;
@@ -75,8 +97,12 @@ public class Data : MonoBehaviour
         RandomNubers randomNubers = numberRandomizer.GetComponent<RandomNubers>();
         randomNubers.OnGenerateAngles += ComponentAnglesOrder;
         randomNubers.OnGenerateScenes += ComponentAScenesOrder;
-        taskButton.onClick.AddListener(() => HideTaskMessage()); // להפוך לאיוונט
-        stopButton.onClick.AddListener(() => { stopButtonPressed = true; }); // Modified to set the flag to true when pressed
+        stopPanel.SetActive(false);
+        taskPanel.SetActive(false);
+        taskButton.onClick.AddListener(TaskButtonClicked);
+        stopButton.onClick.AddListener(StopButtonClicked);
+
+        waitingForStartPosition = true;
     }
 
     private void ComponentAnglesOrder(object sender, RandomNubers.AngelsEventArgs e)
@@ -85,94 +111,121 @@ public class Data : MonoBehaviour
         SecondAngles = e.SecondAngles;
         ThirdAngles = e.ThirdAngles;
         AllTheAngles = new int[][] { FirstAngles, SecondAngles, ThirdAngles };
-
-        CreateTables();
     }
 
 
     private void ComponentAScenesOrder(object sender, RandomNubers.ScenesEventArgs s)
     {
         ScenesOreder = s.Order;
+        CreateTables();
+
     }
 
     public void CreateTables()
     {
-        for (int j = 0; j < ScenesOreder.Length; j++)
+        current[0] = ScenesOreder[currentSceneIndex];
+        OnCurentScenes?.Invoke(this, new CurrentEventArgs(ScenesOreder[currentSceneIndex]));
+
+        if (ScenesOreder[currentSceneIndex] == 1)
         {
-            current[0] = ScenesOreder[j];
-            OnCurentScenes?.Invoke(this, new CurrentEventArgs(ScenesOreder[j])); // לשלוח למחליט על הסצינות
-
-            if (ScenesOreder[j] == 1)
-            {
-                PopulateTable(officeTable, "Office", AllTheAngles[j]);
-            }
-            if (ScenesOreder[j] == 2)
-            {
-                PopulateTable(roomTable, "Room", AllTheAngles[j]);
-            }
-            if (ScenesOreder[j] == 3)
-            {
-                PopulateTable(emptyTable, "Empty", AllTheAngles[j]);
-            }
-
+            PopulateTable(officeTable, "Office", AllTheAngles[currentSceneIndex]);
+        }
+        if (ScenesOreder[currentSceneIndex] == 2)
+        {
+            PopulateTable(roomTable, "Room", AllTheAngles[currentSceneIndex]);
+        }
+        if (ScenesOreder[currentSceneIndex] == 3)
+        {
+            PopulateTable(emptyTable, "Empty", AllTheAngles[currentSceneIndex]);
         }
     }
 
+    void BeginNextProcess()
+    {
+        if (currentAngleIndex >= angels.Length)
+        {
+            if (currentSceneIndex >= ScenesOreder.Length)
+            {
+                Debug.Log("Thank you! We finished");
+                return;
+            }
+
+            else
+            {
+               Debug.Log("Lets Start The Next Level");
+               currentAngleIndex = 0;
+               currentSceneIndex++;
+               CreateTables();
+                return;
+            }
+        }
+
+        waitingForStartPosition = true;
+    } 
 
     private void UpdateCurrentAndShowMessage(int angelValue, string directionValue)
     {
-        //taskPanel.SetActive(true);
-        //taskText.text = "Please turn " + angelValue.ToString() + " degrees to the " + directionValue.ToString();
-        //taskButton.onClick.AddListener(ShowStopPanel);  
-        StartCoroutine(ShowMessageAndAwaitStop(angelValue, directionValue)); // Now starts a coroutine
-
-    }
-
-    IEnumerator ShowMessageAndAwaitStop(int angelValue, string directionValue)
-    {
         taskPanel.SetActive(true);
-        taskText.text = "Please turn " + angelValue.ToString() + " degrees to the " + directionValue;
-        stopButtonPressed = false; // Reset the flag to false
-        yield return new WaitUntil(() => stopButtonPressed); // Wait until the stopButton is pressed
-        HideTaskMessage();
+        taskText.text = "Please turn " + angelValue.ToString() + " degrees to the " + directionValue.ToString();
     }
 
-    private void PopulateTable(List<TableRow> table, string sceneName, int[] array)
+    private void PopulateTable(List<TableRow> table, string sceneName, int[] anglesOrder)
     {
-        
-        for (int i = 0; i < angels.Length; i++)
+        current[1] = anglesOrder[currentAngleIndex];
 
+        int CurrentAngel = angels[current[1]];
+        string Currentdirection = direction[current[1]];
+        int angle360 = CurrentAngel;
+
+        if ( direction[current[1]] == "left")
         {
-            int order = array[i % array.Length];
-            int angelValue = angels[i % angels.Length];
-            string directionValue = direction[i % direction.Length];
+            angle360 = angle360 + 180;
+        }
 
-            int CurrentAngel = angels[order];
-            string Currentdirection = direction[order];
+        OnTaskButtonClicked?.Invoke(this, new AngleEventArgs(angle360));
+        UpdateCurrentAndShowMessage(CurrentAngel, Currentdirection);
 
-            UpdateCurrentAndShowMessage(CurrentAngel, Currentdirection);
+        table.Add(new TableRow(
+    order: current[1],
+    instruction: CurrentAngel,
+    direction: Currentdirection,
+    angle360: angle360,
+    startPosition: 0,
+    endPosition: 0,
+    result: 0,
+    error: 0,
+    startTime: 0,
+    endTime: 0,
+    actualTime: 0));
+    }
 
-            table.Add(new TableRow(
-        order: order,
-        instruction: angelValue,
-        direction: directionValue,
-        result: 0,
-        error: 0,
-        startTime: 0,
-        endTime: 0,
-        actualTime: 0 ));
-                
+
+    private void TaskButtonClicked()
+    {
+        if (waitingForStartPosition)
+        {
+            OnTaskButtonClicked?.Invoke(this, EventArgs.Empty);
+            taskPanel.SetActive(false);
+            // לקבל אישור מיקום מהראש 
+            waitingForStartPosition = false;
+            stopPanel.SetActive(true);
+            waitingForEndPosition = true;
         }
     }
 
-    private void HideTaskMessage()
+    private void StopButtonClicked()
     {
-        taskPanel.SetActive(false);
-    }
-
-    private void ShowStopPanel()
-    {
-        stopPanel.SetActive(true);
+        if (waitingForEndPosition)
+        {
+            OnStopButtonClicked?.Invoke(this, EventArgs.Empty);
+            stopPanel.SetActive(false);
+            // לקבל אישור מיקום מהראש
+            // לקבל את כל הנתונים- צריך לבחור אפה להשלים
+            waitingForEndPosition = false;
+            // רק אחרי עדכון כל הטבלה
+            currentAngleIndex++;
+            BeginNextProcess(); 
+        }
     }
 
 }
