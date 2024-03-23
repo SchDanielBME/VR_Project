@@ -18,20 +18,32 @@ public class Data : MonoBehaviour
     private int[] ThirdAngles;
     private int[] ScenesOreder;
     private int[][] AllTheAngles;
+    private int[] NowAngles;
     [SerializeField] private int[] current = { 0, 0 };
     private string[] ScenesNames = { "Office", "Room", "Empty" };
 
     [SerializeField] private GameObject numberRandomizer;
     [SerializeField] private GameObject taskPanel;
+    [SerializeField] private GameObject headLocation;
+    [SerializeField] private GameObject thanksPanel;
     [SerializeField] private TextMeshProUGUI taskText;
     [SerializeField] private Button taskButton;
     [SerializeField] private GameObject stopPanel;
     [SerializeField] private Button stopButton;
 
-    private int currentAngleIndex = 0;
-    private int currentSceneIndex = 0;
+    [SerializeField] private int currentAngleIndex = 0;
+    [SerializeField] private int currentSceneIndex = 0;
     private bool waitingForStartPosition = true;
     private bool waitingForEndPosition = true;
+    private bool SLConfirmation = false;
+    private bool ELConfirmation = false;
+
+    private Vector3 tempStartPosition;
+    private Vector3 tempEndPosition;
+    private float tempElapsedTime;
+    private float tempAngleError;
+    private TableRow lastAddedRow; 
+
 
     public event EventHandler <CurrentEventArgs> OnCurentScenes;
     public class CurrentEventArgs : EventArgs
@@ -67,16 +79,13 @@ public class Data : MonoBehaviour
         public int instruction;
         public string direction;
         public int angle360;
-        public int startPosition;
-        public int endPosition;
-        public int result;
-        public int error;
-        public int startTime;
-        public int endTime;
-        public int actualTime;
+        public Vector3 startPosition;
+        public Vector3 endPosition;
+        public float error;
+        public float TotTime;
 
-        public TableRow(int order, int instruction, string direction, int angle360, int startPosition, int endPosition,
-                        int result, int error, int startTime, int endTime, int actualTime)
+        public TableRow(int order, int instruction, string direction, int angle360, Vector3 startPosition, Vector3 endPosition,
+                         float error, float Time)
         {
             this.Taskorder = order;
             this.instruction = instruction;
@@ -84,29 +93,35 @@ public class Data : MonoBehaviour
             this.angle360 = angle360;
             this.startPosition = startPosition;
             this.endPosition = endPosition;
-            this.result = result;
             this.error = error;
-            this.startTime = startTime;
-            this.endTime = endTime;
-            this.actualTime = actualTime;
+            this.TotTime = Time;
         }
     }
 
     void Start()
     {
+        taskButton.onClick.AddListener(TaskButtonClicked);
+        stopButton.onClick.AddListener(StopButtonClicked);
+        stopPanel.SetActive(false);
+        taskPanel.SetActive(false);
+        thanksPanel.SetActive(false);
+
         RandomNubers randomNubers = numberRandomizer.GetComponent<RandomNubers>();
         randomNubers.OnGenerateAngles += ComponentAnglesOrder;
         randomNubers.OnGenerateScenes += ComponentAScenesOrder;
-        stopPanel.SetActive(false);
-        taskPanel.SetActive(false);
-        taskButton.onClick.AddListener(TaskButtonClicked);
-        stopButton.onClick.AddListener(StopButtonClicked);
+        
+        HeadLocation location = headLocation.GetComponent<HeadLocation>();
+        location.OnSaveStartLoction += StartLocationConfirmation;
+        location.OnSaveEndLoction += EndLocationConfirmation;
+        location.OnPoseCaptured += HandlePoseCaptured;
 
         waitingForStartPosition = true;
+
     }
 
     private void ComponentAnglesOrder(object sender, RandomNubers.AngelsEventArgs e)
     {
+        Debug.Log("ComponentAnglesOrder called");
         FirstAngles = e.FirstAngles;
         SecondAngles = e.SecondAngles;
         ThirdAngles = e.ThirdAngles;
@@ -118,25 +133,35 @@ public class Data : MonoBehaviour
     {
         ScenesOreder = s.Order;
         CreateTables();
+    }
 
+    private void StartLocationConfirmation(object sender, EventArgs SLC)
+    {
+        SLConfirmation = true;
+    }
+
+    private void EndLocationConfirmation(object sender, EventArgs SLC)
+    {
+        ELConfirmation = true;
     }
 
     public void CreateTables()
     {
+        NowAngles = AllTheAngles[currentSceneIndex];
         current[0] = ScenesOreder[currentSceneIndex];
         OnCurentScenes?.Invoke(this, new CurrentEventArgs(ScenesOreder[currentSceneIndex]));
 
         if (ScenesOreder[currentSceneIndex] == 1)
         {
-            PopulateTable(officeTable, "Office", AllTheAngles[currentSceneIndex]);
+            PopulateTable(officeTable, "Office", NowAngles);
         }
         if (ScenesOreder[currentSceneIndex] == 2)
         {
-            PopulateTable(roomTable, "Room", AllTheAngles[currentSceneIndex]);
+            PopulateTable(roomTable, "Room", NowAngles);
         }
         if (ScenesOreder[currentSceneIndex] == 3)
         {
-            PopulateTable(emptyTable, "Empty", AllTheAngles[currentSceneIndex]);
+            PopulateTable(emptyTable, "Empty", NowAngles) ;
         }
     }
 
@@ -144,9 +169,9 @@ public class Data : MonoBehaviour
     {
         if (currentAngleIndex >= angels.Length)
         {
-            if (currentSceneIndex >= ScenesOreder.Length)
+            if (currentSceneIndex >= ScenesOreder.Length-1)
             {
-                Debug.Log("Thank you! We finished");
+                thanksPanel.SetActive(true);
                 return;
             }
 
@@ -155,12 +180,14 @@ public class Data : MonoBehaviour
                Debug.Log("Lets Start The Next Level");
                currentAngleIndex = 0;
                currentSceneIndex++;
+               waitingForStartPosition = true;
                CreateTables();
-                return;
+               return;
             }
         }
 
         waitingForStartPosition = true;
+        CreateTables();
     } 
 
     private void UpdateCurrentAndShowMessage(int angelValue, string directionValue)
@@ -171,32 +198,32 @@ public class Data : MonoBehaviour
 
     private void PopulateTable(List<TableRow> table, string sceneName, int[] anglesOrder)
     {
+        Debug.Log("Populating table for scene: " + sceneName);
         current[1] = anglesOrder[currentAngleIndex];
 
-        int CurrentAngel = angels[current[1]];
-        string Currentdirection = direction[current[1]];
+        int CurrentAngel = angels[current[1]-1];
+        string Currentdirection = direction[current[1]-1];
         int angle360 = CurrentAngel;
 
-        if ( direction[current[1]] == "left")
+        if ( direction[current[1]-1] == "left")
         {
             angle360 = angle360 + 180;
         }
 
-        OnTaskButtonClicked?.Invoke(this, new AngleEventArgs(angle360));
-        UpdateCurrentAndShowMessage(CurrentAngel, Currentdirection);
+        OnCurentAngle?.Invoke(this, new AngleEventArgs(angle360));
 
-        table.Add(new TableRow(
-    order: current[1],
-    instruction: CurrentAngel,
-    direction: Currentdirection,
-    angle360: angle360,
-    startPosition: 0,
-    endPosition: 0,
-    result: 0,
-    error: 0,
-    startTime: 0,
-    endTime: 0,
-    actualTime: 0));
+        lastAddedRow = new TableRow(
+               current[1],
+               CurrentAngel,
+               Currentdirection,
+               angle360,
+               Vector3.zero,  
+               Vector3.zero,    
+               0,               
+               0);        
+        
+        table.Add(lastAddedRow);
+        UpdateCurrentAndShowMessage(CurrentAngel, Currentdirection);
     }
 
 
@@ -206,10 +233,12 @@ public class Data : MonoBehaviour
         {
             OnTaskButtonClicked?.Invoke(this, EventArgs.Empty);
             taskPanel.SetActive(false);
-            // לקבל אישור מיקום מהראש 
-            waitingForStartPosition = false;
-            stopPanel.SetActive(true);
-            waitingForEndPosition = true;
+            if (SLConfirmation) {
+                waitingForStartPosition = false;
+                stopPanel.SetActive(true);
+                waitingForEndPosition = true;
+                SLConfirmation = false;
+            }
         }
     }
 
@@ -219,13 +248,33 @@ public class Data : MonoBehaviour
         {
             OnStopButtonClicked?.Invoke(this, EventArgs.Empty);
             stopPanel.SetActive(false);
-            // לקבל אישור מיקום מהראש
-            // לקבל את כל הנתונים- צריך לבחור אפה להשלים
-            waitingForEndPosition = false;
-            // רק אחרי עדכון כל הטבלה
-            currentAngleIndex++;
-            BeginNextProcess(); 
+            if (ELConfirmation)
+            {
+                ApplyPoseDataToCurrentRow();
+                waitingForEndPosition = false;
+                ELConfirmation = false;
+                currentAngleIndex = currentAngleIndex+1;
+                BeginNextProcess();
+            }
+       
         }
     }
+    private void HandlePoseCaptured(object sender, HeadLocation.PoseEventArgs e)
+    {
+        tempStartPosition = e.StartPosition;
+        tempEndPosition = e.EndPosition;
+        tempElapsedTime = e.ElapsedTime;
+        tempAngleError = e.ErrorTime;
+    }
 
+    private void ApplyPoseDataToCurrentRow()
+    {
+        if (lastAddedRow != null)
+        {
+            lastAddedRow.startPosition = tempStartPosition;
+            lastAddedRow.endPosition = tempEndPosition;
+            lastAddedRow.error = tempAngleError; 
+            lastAddedRow.TotTime = tempElapsedTime;
+        }
+    }
 }

@@ -1372,6 +1372,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: XR Device Simulator
       objectReference: {fileID: 0}
+    - target: {fileID: 6598815579406187037, guid: 18ddb545287c546e19cc77dc9fbb2189,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3392,7 +3397,7 @@ Canvas:
   m_GameObject: {fileID: 1060890209}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 0
+  m_RenderMode: 1
   m_Camera: {fileID: 1161342814}
   m_PlaneDistance: 5
   m_PixelPerfect: 0
@@ -3777,6 +3782,7 @@ GameObject:
   - component: {fileID: 1161342813}
   - component: {fileID: 1161342812}
   - component: {fileID: 1161342811}
+  - component: {fileID: 1161342815}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -4011,6 +4017,20 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
+--- !u!114 &1161342815
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1161342809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fef1b9c92d1e7847924ed5ea2157182, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  data: {fileID: 2069040988}
+  angle: 0
 --- !u!1001 &1229110906
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5605,6 +5625,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 921b12c1287a2e047a65ae320b00157a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  data: {fileID: 2069040988}
+  plane: {fileID: 397449646}
+  room: {fileID: 328082699}
+  props: {fileID: 1899671144}
 --- !u!1 &1899671144
 GameObject:
   m_ObjectHideFlags: 0
@@ -5971,12 +5995,17 @@ MonoBehaviour:
   officeTable: []
   roomTable: []
   emptyTable: []
+  current: 0000000000000000
   numberRandomizer: {fileID: 1787216813}
   taskPanel: {fileID: 1033963989}
+  headLocation: {fileID: 0}
+  thanksPanel: {fileID: 0}
   taskText: {fileID: 840237020}
   taskButton: {fileID: 1567870795}
   stopPanel: {fileID: 781606578}
   stopButton: {fileID: 314954743}
+  currentAngleIndex: 0
+  currentSceneIndex: 0
 --- !u!4 &2069040990
 Transform:
   m_ObjectHideFlags: 0

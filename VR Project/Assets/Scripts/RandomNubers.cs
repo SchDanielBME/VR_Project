@@ -54,8 +54,8 @@ public class RandomNubers : MonoBehaviour
         second = order[1];
         third = order[2];
 
-        OnGenerateScenes?.Invoke(this, new ScenesEventArgs(order));
         OnGenerateAngles?.Invoke(this, new AngelsEventArgs(firstAnglesOrder, secondAnglesOrder, thirdAnglesOrder));
+        OnGenerateScenes?.Invoke(this, new ScenesEventArgs(order));
     
     }
 
