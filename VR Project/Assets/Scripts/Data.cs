@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,6 +22,8 @@ public class Data : MonoBehaviour
     private int[] NowAngles;
     [SerializeField] private int[] current = { 0, 0 };
     private string[] ScenesNames = { "Office", "Room", "Empty" };
+    private DateTime startTime;
+    private string outputFileName;
 
     [SerializeField] private GameObject numberRandomizer;
     [SerializeField] private GameObject taskPanel;
@@ -30,6 +33,7 @@ public class Data : MonoBehaviour
     [SerializeField] private Button taskButton;
     [SerializeField] private GameObject stopPanel;
     [SerializeField] private Button stopButton;
+    [SerializeField] private Button thanksButton;
 
     [SerializeField] private int currentAngleIndex = 0;
     [SerializeField] private int currentSceneIndex = 0;
@@ -42,6 +46,8 @@ public class Data : MonoBehaviour
     private Vector3 tempEndPosition;
     private float tempElapsedTime;
     private float tempAngleError;
+    private float tempResult;
+    private float tempStartTime;
     private TableRow lastAddedRow; 
 
 
@@ -75,33 +81,46 @@ public class Data : MonoBehaviour
     [System.Serializable] 
     public class TableRow
     {
+        public string screneNum;
+        public int screneOrder;
         public int Taskorder;
         public int instruction;
         public string direction;
         public int angle360;
         public Vector3 startPosition;
         public Vector3 endPosition;
+        public float result;
         public float error;
         public float TotTime;
+        public float Time;
 
-        public TableRow(int order, int instruction, string direction, int angle360, Vector3 startPosition, Vector3 endPosition,
-                         float error, float Time)
+
+        public TableRow(string screne, int sceneOrder, int order, int instruction, string direction, int angle360, Vector3 startPosition, Vector3 endPosition,
+                         float Result, float error, float Time, float startTime)
         {
+            this.screneNum = screne;
+            this.screneOrder = sceneOrder;
             this.Taskorder = order;
             this.instruction = instruction;
             this.direction = direction;
             this.angle360 = angle360;
             this.startPosition = startPosition;
             this.endPosition = endPosition;
+            this.result = Result;
             this.error = error;
             this.TotTime = Time;
+            this.Time = startTime;
         }
     }
 
     void Start()
     {
+        startTime = DateTime.Now;
+        outputFileName = "Data_" + startTime.ToString("yyyy MM dd _ HH mm ss") + ".txt";
+
         taskButton.onClick.AddListener(TaskButtonClicked);
         stopButton.onClick.AddListener(StopButtonClicked);
+        thanksButton.onClick.AddListener(ThanksButtonClicked);
         stopPanel.SetActive(false);
         taskPanel.SetActive(false);
         thanksPanel.SetActive(false);
@@ -116,7 +135,6 @@ public class Data : MonoBehaviour
         location.OnPoseCaptured += HandlePoseCaptured;
 
         waitingForStartPosition = true;
-
     }
 
     private void ComponentAnglesOrder(object sender, RandomNubers.AngelsEventArgs e)
@@ -198,28 +216,32 @@ public class Data : MonoBehaviour
 
     private void PopulateTable(List<TableRow> table, string sceneName, int[] anglesOrder)
     {
-        Debug.Log("Populating table for scene: " + sceneName);
         current[1] = anglesOrder[currentAngleIndex];
 
         int CurrentAngel = angels[current[1]-1];
         string Currentdirection = direction[current[1]-1];
         int angle360 = CurrentAngel;
+        string currentTableName = sceneName;
 
         if ( direction[current[1]-1] == "left")
         {
-            angle360 = angle360 + 180;
+            angle360 = 360 - angle360;
         }
 
         OnCurentAngle?.Invoke(this, new AngleEventArgs(angle360));
 
         lastAddedRow = new TableRow(
+               sceneName,
+               currentSceneIndex+1,
                current[1],
                CurrentAngel,
                Currentdirection,
                angle360,
                Vector3.zero,  
-               Vector3.zero,    
+               Vector3.zero, 
+               0,
                0,               
+               0,
                0);        
         
         table.Add(lastAddedRow);
@@ -265,6 +287,8 @@ public class Data : MonoBehaviour
         tempEndPosition = e.EndPosition;
         tempElapsedTime = e.ElapsedTime;
         tempAngleError = e.ErrorTime;
+        tempResult = e.Result;
+        tempStartTime = e.Time;
     }
 
     private void ApplyPoseDataToCurrentRow()
@@ -275,6 +299,40 @@ public class Data : MonoBehaviour
             lastAddedRow.endPosition = tempEndPosition;
             lastAddedRow.error = tempAngleError; 
             lastAddedRow.TotTime = tempElapsedTime;
+            lastAddedRow.result = tempResult;
+            lastAddedRow.Time = tempStartTime;
         }
     }
+
+    private void ThanksButtonClicked()
+    {
+        SaveTablesToFile();
+        EndGame();
+    }
+
+    private void SaveTablesToFile()
+    {
+        List<TableRow> allTables = new List<TableRow>();
+        allTables.AddRange(officeTable);
+        allTables.AddRange(roomTable);
+        allTables.AddRange(emptyTable);
+
+        string filePath = Path.Combine(Application.persistentDataPath, outputFileName);
+        using (StreamWriter writer = new StreamWriter(filePath))
+        {
+            foreach (TableRow row in allTables)
+            {
+                writer.WriteLine($"Scene: {row.screneNum}, SenceOrder: {row.screneOrder}, Taskorder: {row.Taskorder}, Instruction: {row.instruction}, Direction: {row.direction}, Angle: {row.angle360}, StartPosition: {row.startPosition}, EndPosition: {row.endPosition}, Result: {row.result} , Error: {row.error}, TotalTime: {row.TotTime}, StartTime: {row.Time}");
+            }
+        }
+
+        Debug.Log("Tables saved to file: " + filePath);
+    }
+
+    private void EndGame()
+    {
+        Debug.Log("Game ended.");
+        Application.Quit();
+    }
+
 }

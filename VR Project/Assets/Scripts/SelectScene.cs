@@ -15,10 +15,10 @@ public class SelectScene : MonoBehaviour
 
     void Start()
     {
-        Data currentScene = data.GetComponent<Data>();
-        currentScene.OnCurentScenes += ComponentCurentScenes;
         room.SetActive(false);
         props.SetActive(false);
+        Data currentScene = data.GetComponent<Data>();
+        currentScene.OnCurentScenes += ComponentCurentScenes;
     }
 
     private void ComponentCurentScenes(object sender, Data.CurrentEventArgs e)
@@ -26,6 +26,7 @@ public class SelectScene : MonoBehaviour
         scence = e.CurrentSceneNum;
        
         if (scence == 1) {
+            Debug.Log("OFFICE");
             room.SetActive(true);
             props.SetActive(true);
             plane.SetActive(false);
@@ -33,13 +34,15 @@ public class SelectScene : MonoBehaviour
 
         if (scence == 2)
         {
+            Debug.Log("room");
             room.SetActive(true);
             props.SetActive(false);
             plane.SetActive(false);
         }
 
-        else
+        if (scence == 3)
         {
+            Debug.Log("empty");
             room.SetActive(false);
             props.SetActive(false);
             plane.SetActive(true);

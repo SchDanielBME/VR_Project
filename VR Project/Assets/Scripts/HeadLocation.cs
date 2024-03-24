@@ -21,15 +21,19 @@ public class HeadLocation : MonoBehaviour
     {
         public Vector3 StartPosition { get; private set; }
         public Vector3 EndPosition { get; private set; }
+        public float Result { get; private set; }
         public float ElapsedTime { get; private set; }
+        public float Time { get; private set; }
         public float ErrorTime { get; private set; }
 
 
-        public PoseEventArgs(Vector3 startPosition, Vector3 endPosition, float elapsedTime,float angleError)
+        public PoseEventArgs(Vector3 startPosition, Vector3 endPosition, float angleResult, float elapsedTime,float time, float angleError)
         {
             StartPosition = startPosition;
             EndPosition = endPosition;
+            Result = angleResult;
             ElapsedTime = elapsedTime;
+            Time = time;
             ErrorTime = angleError;
         }
     }
@@ -46,23 +50,21 @@ public class HeadLocation : MonoBehaviour
 
     private void TakeStartPose(object sender, EventArgs e)
     {
-        startPosition = Camera.main.transform.position;
+        startPosition = Camera.main.transform.forward;
         startTime = Time.time;
         OnSaveStartLoction?.Invoke(this, EventArgs.Empty);
     }
 
     private void TakeEndPose(object sender, EventArgs e)
     {
-        endPosition = Camera.main.transform.position;
+        endPosition = Camera.main.transform.forward;
         endTime = Time.time;
         float elapsedTime = endTime - startTime;
         OnSaveEndLoction?.Invoke(this, EventArgs.Empty);
 
         Vector3 startDirection = new Vector3(startPosition.x, 0, startPosition.z);
         Vector3 endDirection = new Vector3(endPosition.x, 0, endPosition.z);
-        Vector3 movementDirection = (endDirection - startDirection).normalized; // Direction of movement in XZ plane
-        Vector3 referenceDirection = new Vector3(0, 0, 1);
-        realAngleInXZPlane = Vector3.SignedAngle(referenceDirection, movementDirection, Vector3.up);
+        realAngleInXZPlane = Vector3.SignedAngle(startDirection, endDirection, Vector3.up);
 
         if (realAngleInXZPlane < 0)
         {
@@ -70,7 +72,9 @@ public class HeadLocation : MonoBehaviour
         }
         angleError = Mathf.Abs(angle - realAngleInXZPlane);
 
-        OnPoseCaptured?.Invoke(this, new PoseEventArgs(startPosition, endPosition, elapsedTime, angleError));
+        OnPoseCaptured?.Invoke(this, new PoseEventArgs(startPosition, endPosition, realAngleInXZPlane, elapsedTime, startTime, angleError));
+        startTime = 0;
+        endTime = 0;
     }
 
     private void GetCurentAngle(object sender, Data.AngleEventArgs en)
